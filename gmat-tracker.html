@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GMAT Study Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #22d3ee;
+    --good: #4ade80;
+    --warn: #facc15;
+    --bad: #f87171;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  }
+  h1 {
+    margin: 0; font-size: 28px; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; }
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .panel h2 { margin: 0 0 16px 0; font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .timer-display {
+    font-size: 56px; font-weight: 700; text-align: center;
+    font-variant-numeric: tabular-nums; margin: 8px 0 16px 0;
+    color: var(--accent);
+  }
+  .timer-state { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s; flex: 1;
+  }
+  button:hover { opacity: 0.9; }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-start { background: var(--good); color: #052e16; }
+  .btn-pause { background: var(--warn); color: #422006; }
+  .btn-stop  { background: var(--bad);  color: #450a0a; }
+  .btn-ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-primary { background: var(--accent); color: #082f49; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px 0; }
+  input[type="text"], textarea, select, input[type="number"] {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag {
+    padding: 6px 10px; border-radius: 999px; font-size: 12px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+  }
+  .tag.active { background: var(--accent); color: #082f49; border-color: var(--accent); font-weight: 600; }
+  .scale-row { display: flex; gap: 6px; margin-top: 6px; }
+  .scale-btn {
+    flex: 1; padding: 10px; text-align: center; border-radius: 8px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    cursor: pointer; user-select: none; font-size: 14px;
+  }
+  .scale-btn.active { background: var(--accent); color: #082f49; font-weight: 700; border-color: var(--accent); }
+  .interrupt-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .interrupt-row button { flex: 0 0 40px; padding: 8px 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .interrupt-count { font-size: 20px; font-weight: 700; min-width: 30px; text-align: center; }
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;
+  }
+  @media (max-width: 700px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--panel-2); border-radius: 10px; padding: 14px;
+    text-align: center; border: 1px solid var(--border);
+  }
+  .kpi-value { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px;
+  }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  .log-actions button { padding: 4px 8px; font-size: 12px; flex: none; }
+  .progress-bar {
+    height: 10px; background: var(--panel-2); border-radius: 999px;
+    overflow: hidden; margin-top: 8px; border: 1px solid var(--border);
+  }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s; }
+  .row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .empty { color: var(--muted); text-align: center; padding: 30px; font-size: 13px; }
+  .chip {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px;
+    background: rgba(56,189,248,0.15); color: var(--accent); border: 1px solid var(--accent);
+  }
+  .footer-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  .mood-row { display: flex; gap: 6px; margin-top: 6px; }
+  .mood-btn { flex: 1; padding: 10px; font-size: 20px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center; }
+  .mood-btn.active { background: var(--accent); border-color: var(--accent); }
+
+  /* Today panel */
+  .today-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 700px) { .today-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Filter pills */
+  .filter-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: 13px;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  }
+  .filter-pill.active { background: var(--accent); color: #082f49; border-color: var(--accent); font-weight: 600; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow);
+  }
+  .modal h3 { margin: 0 0 12px 0; font-size: 18px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .modal-actions button { flex: 0 0 auto; }
+  input[type="datetime-local"] {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); font-size: 14px; font-family: inherit;
+    color-scheme: dark;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>GMAT Study Tracker</h1>
+      <div class="subtitle">Clock in. Stay focused. Crush the test.</div>
+    </div>
+    <div class="btn-row" style="max-width: 260px;">
+      <button class="btn-ghost" onclick="exportData()">Export JSON</button>
+      <button class="btn-ghost" onclick="document.getElementById('importFile').click()">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Timer + Session Form -->
+    <div class="panel">
+      <h2>Active Session</h2>
+      <div class="timer-display" id="timerDisplay">00:00:00</div>
+      <div class="timer-state" id="timerState">Ready to start</div>
+      <div class="btn-row">
+        <button class="btn-start" id="startBtn" onclick="startTimer()">Start</button>
+        <button class="btn-pause" id="pauseBtn" onclick="pauseTimer()" disabled>Pause</button>
+        <button class="btn-stop"  id="stopBtn"  onclick="stopTimer()"  disabled>Stop & Log</button>
+      </div>
+
+      <label>Topic / Section</label>
+      <div class="tag-row" id="topicTags"></div>
+
+      <label>Focus level (1 = distracted, 5 = locked in)</label>
+      <div class="scale-row" id="focusScale"></div>
+
+      <label>Interruptions</label>
+      <div class="interrupt-row">
+        <button onclick="changeInterrupt(-1)">-</button>
+        <span class="interrupt-count" id="interruptCount">0</span>
+        <button onclick="changeInterrupt(1)">+</button>
+        <span style="color: var(--muted); font-size: 12px;">phone, noise, breaks, etc.</span>
+      </div>
+
+      <label>How do you feel about your progress?</label>
+      <div class="mood-row" id="moodRow">
+        <div class="mood-btn" data-mood="1" title="Frustrated">😩</div>
+        <div class="mood-btn" data-mood="2" title="Meh">😐</div>
+        <div class="mood-btn" data-mood="3" title="Okay">🙂</div>
+        <div class="mood-btn" data-mood="4" title="Strong">💪</div>
+        <div class="mood-btn" data-mood="5" title="Crushed it">🔥</div>
+      </div>
+
+      <label>Notes / key takeaways</label>
+      <textarea id="notesInput" placeholder="What did you learn? Formulas, tricks, weak spots, mistakes to fix..."></textarea>
+    </div>
+
+    <!-- RIGHT: Dashboard -->
+    <div class="panel">
+      <h2>This Week</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-value" id="kpiHours">0h</div><div class="kpi-label">Total Hours</div></div>
+        <div class="kpi"><div class="kpi-value" id="kpiSessions">0</div><div class="kpi-label">Sessions</div></div>
+        <div class="kpi"><div class="kpi-value" id="kpiFocus">-</div><div class="kpi-label">Avg Focus</div></div>
+        <div class="kpi"><div class="kpi-value" id="kpiStreak">0</div><div class="kpi-label">Day Streak</div></div>
+      </div>
+
+      <label style="margin-top: 0;">
+        Daily goal: <input type="number" id="dailyGoal" min="0" step="0.25" style="width:70px; display:inline-block; padding:4px 8px;" /> h
+        <span id="goalProgressText" style="margin-left: 8px; color: var(--muted); font-size: 12px;"></span>
+      </label>
+      <div class="progress-bar"><div class="progress-fill" id="goalProgress" style="width:0%"></div></div>
+
+      <div style="margin-top: 16px; height: 220px;">
+        <canvas id="weekChart"></canvas>
+      </div>
+
+      <div style="margin-top: 16px; height: 180px;">
+        <canvas id="topicChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TODAY PANEL -->
+  <div class="panel" style="margin-top: 20px;">
+    <h2>Today <span id="todayDate" style="text-transform:none; color: var(--text); font-weight:400; margin-left:8px;"></span></h2>
+    <div class="today-grid">
+      <div class="kpi"><div class="kpi-value" id="todayHours">0h</div><div class="kpi-label">Hours Studied</div></div>
+      <div class="kpi"><div class="kpi-value" id="todaySessions">0</div><div class="kpi-label">Sessions</div></div>
+      <div class="kpi"><div class="kpi-value" id="todayFocus">-</div><div class="kpi-label">Avg Focus</div></div>
+      <div class="kpi"><div class="kpi-value" id="todayInterrupts">0</div><div class="kpi-label">Interruptions</div></div>
+    </div>
+    <div id="todayTopicsRow" style="margin-top: 14px; color: var(--muted); font-size: 13px;"></div>
+  </div>
+
+  <!-- TIMESHEET -->
+  <div class="panel" style="margin-top: 20px;">
+    <h2>Timesheet</h2>
+    <div class="filter-row">
+      <div class="filter-pill active" data-filter="today">Today</div>
+      <div class="filter-pill" data-filter="week">This Week</div>
+      <div class="filter-pill" data-filter="all">All</div>
+      <div style="flex:1;"></div>
+      <div style="color: var(--muted); font-size: 12px; align-self: center;" id="filterSummary"></div>
+    </div>
+    <div id="logTableWrap" style="overflow-x: auto;">
+      <table id="logTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Start</th><th>End</th><th>Duration</th><th>Topic</th>
+            <th>Focus</th><th>Interrupts</th><th>Mood</th><th>Notes</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+      <div id="emptyLog" class="empty" style="display:none;">No sessions in this range.</div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Session</h3>
+    <div class="row-2col">
+      <div>
+        <label>Start</label>
+        <input type="datetime-local" id="editStart" />
+      </div>
+      <div>
+        <label>End</label>
+        <input type="datetime-local" id="editEnd" />
+      </div>
+    </div>
+    <label>Topic</label>
+    <select id="editTopic"></select>
+    <label>Focus (1-5)</label>
+    <select id="editFocus">
+      <option value="">-</option>
+      <option value="1">1</option><option value="2">2</option>
+      <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+    </select>
+    <label>Interruptions</label>
+    <input type="number" id="editInterrupts" min="0" />
+    <label>Mood</label>
+    <select id="editMood">
+      <option value="">-</option>
+      <option value="1">😩 Frustrated</option>
+      <option value="2">😐 Meh</option>
+      <option value="3">🙂 Okay</option>
+      <option value="4">💪 Strong</option>
+      <option value="5">🔥 Crushed it</option>
+    </select>
+    <label>Notes</label>
+    <textarea id="editNotes"></textarea>
+    <div class="modal-actions">
+      <button class="btn-stop" onclick="deleteEditing()">Delete</button>
+      <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOPICS = [
+  "Quant - Algebra", "Quant - Arithmetic", "Quant - Word Problems",
+  "Verbal - Critical Reasoning", "Verbal - Reading Comp",
+  "Data Insights", "Mock Test", "Review / Errors", "Other"
+];
+
+let state = {
+  sessions: [],
+  dailyGoalHours: 2,
+  current: null,
+  draft: { topic: null, focus: null, interruptions: 0, mood: null, notes: "" }
+};
+
+let timerInterval = null;
+let currentFilter = "today";
+let editingId = null;
+
+// LOAD STATE
+function loadState() {
+  try {
+    const raw = localStorage.getItem("gmatTracker");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state = { ...state, ...parsed };
+      if (!state.draft) state.draft = { topic: null, focus: null, interruptions: 0, mood: null, notes: "" };
+    }
+  } catch (e) { console.error(e); }
+  document.getElementById("dailyGoal").value = state.dailyGoalHours;
+}
+
+function saveState() {
+  localStorage.setItem("gmatTracker", JSON.stringify(state));
+}
+
+// TOPIC TAGS
+function renderTopics() {
+  const wrap = document.getElementById("topicTags");
+  wrap.innerHTML = "";
+  TOPICS.forEach(t => {
+    const el = document.createElement("div");
+    el.className = "tag" + (state.draft.topic === t ? " active" : "");
+    el.textContent = t;
+    el.onclick = () => { state.draft.topic = t; renderTopics(); saveState(); };
+    wrap.appendChild(el);
+  });
+}
+
+// FOCUS SCALE
+function renderFocus() {
+  const wrap = document.getElementById("focusScale");
+  wrap.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const el = document.createElement("div");
+    el.className = "scale-btn" + (state.draft.focus === i ? " active" : "");
+    el.textContent = i;
+    el.onclick = () => { state.draft.focus = i; renderFocus(); saveState(); };
+    wrap.appendChild(el);
+  }
+}
+
+// MOOD
+function renderMood() {
+  document.querySelectorAll("#moodRow .mood-btn").forEach(btn => {
+    const m = parseInt(btn.dataset.mood);
+    btn.classList.toggle("active", state.draft.mood === m);
+    btn.onclick = () => { state.draft.mood = m; renderMood(); saveState(); };
+  });
+}
+
+// INTERRUPTIONS
+function changeInterrupt(delta) {
+  state.draft.interruptions = Math.max(0, state.draft.interruptions + delta);
+  document.getElementById("interruptCount").textContent = state.draft.interruptions;
+  saveState();
+}
+
+// NOTES
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("notesInput").addEventListener("input", e => {
+    state.draft.notes = e.target.value;
+    saveState();
+  });
+  document.getElementById("dailyGoal").addEventListener("change", e => {
+    state.dailyGoalHours = parseFloat(e.target.value) || 0;
+    saveState();
+    renderDashboard();
+  });
+
+  // Filter pills
+  document.querySelectorAll(".filter-pill").forEach(p => {
+    p.addEventListener("click", () => {
+      currentFilter = p.dataset.filter;
+      document.querySelectorAll(".filter-pill").forEach(x => x.classList.toggle("active", x === p));
+      renderLog();
+    });
+  });
+
+  // Close modal on overlay click
+  document.getElementById("editModal").addEventListener("click", e => {
+    if (e.target.id === "editModal") closeEdit();
+  });
+
+  // ESC closes modal
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && document.getElementById("editModal").classList.contains("open")) closeEdit();
+  });
+});
+
+// TIMER
+function startTimer() {
+  if (!state.current) {
+    state.current = {
+      startedAt: Date.now(),
+      elapsedMs: 0,
+      pausedAt: null,
+      running: true
+    };
+  } else if (state.current.pausedAt) {
+    state.current.startedAt = Date.now();
+    state.current.pausedAt = null;
+    state.current.running = true;
+  }
+  saveState();
+  updateTimerButtons();
+  tick();
+  timerInterval = setInterval(tick, 1000);
+}
+
+function pauseTimer() {
+  if (!state.current || !state.current.running) return;
+  state.current.elapsedMs += Date.now() - state.current.startedAt;
+  state.current.pausedAt = Date.now();
+  state.current.running = false;
+  clearInterval(timerInterval);
+  saveState();
+  updateTimerButtons();
+  document.getElementById("timerState").textContent = "Paused";
+}
+
+function stopTimer() {
+  if (!state.current) return;
+  let total = state.current.elapsedMs;
+  if (state.current.running) total += Date.now() - state.current.startedAt;
+  clearInterval(timerInterval);
+
+  if (total < 5000) {
+    if (!confirm("Less than 5 seconds logged. Save anyway?")) {
+      state.current = null;
+      saveState();
+      updateTimerButtons();
+      document.getElementById("timerDisplay").textContent = "00:00:00";
+      document.getElementById("timerState").textContent = "Ready to start";
+      return;
+    }
+  }
+
+  const sessionStart = Date.now() - total;
+  const session = {
+    id: Date.now(),
+    start: sessionStart,
+    end: Date.now(),
+    durationMs: total,
+    topic: state.draft.topic || "Unspecified",
+    focus: state.draft.focus,
+    interruptions: state.draft.interruptions,
+    mood: state.draft.mood,
+    notes: state.draft.notes || ""
+  };
+  state.sessions.unshift(session);
+  state.current = null;
+  state.draft = { topic: null, focus: null, interruptions: 0, mood: null, notes: "" };
+  document.getElementById("notesInput").value = "";
+  document.getElementById("interruptCount").textContent = "0";
+  saveState();
+  renderTopics(); renderFocus(); renderMood();
+  updateTimerButtons();
+  document.getElementById("timerDisplay").textContent = "00:00:00";
+  document.getElementById("timerState").textContent = "Session logged";
+  renderAll();
+}
+
+function tick() {
+  if (!state.current) return;
+  let total = state.current.elapsedMs;
+  if (state.current.running) {
+    total += Date.now() - state.current.startedAt;
+    // Persist progress every tick so a tab close doesn't lose time
+    state.current.elapsedMs = total;
+    state.current.startedAt = Date.now();
+    saveState();
+  }
+  document.getElementById("timerDisplay").textContent = formatDuration(total);
+  document.getElementById("timerState").textContent = state.current.running ? "Studying..." : "Paused";
+}
+
+function updateTimerButtons() {
+  const c = state.current;
+  document.getElementById("startBtn").disabled = c && c.running;
+  document.getElementById("pauseBtn").disabled = !c || !c.running;
+  document.getElementById("stopBtn").disabled = !c;
+  if (c && c.running) document.getElementById("startBtn").textContent = "Running";
+  else if (c) document.getElementById("startBtn").textContent = "Resume";
+  else document.getElementById("startBtn").textContent = "Start";
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [h, m, sec].map(n => String(n).padStart(2, "0")).join(":");
+}
+
+function formatHours(ms) {
+  return (ms / 3600000).toFixed(2) + "h";
+}
+
+// DASHBOARD
+let weekChartObj = null;
+let topicChartObj = null;
+
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay(); // 0 Sun
+  const monOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + monOffset);
+  monday.setHours(0,0,0,0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23,59,59,999);
+  return { monday, sunday };
+}
+
+function renderDashboard() {
+  const { monday, sunday } = getWeekRange();
+  const weekSessions = state.sessions.filter(s => s.start >= monday.getTime() && s.start <= sunday.getTime());
+  const totalMs = weekSessions.reduce((a, s) => a + s.durationMs, 0);
+  const focusVals = weekSessions.filter(s => s.focus).map(s => s.focus);
+  const avgFocus = focusVals.length ? (focusVals.reduce((a,b)=>a+b,0)/focusVals.length).toFixed(1) : "-";
+
+  document.getElementById("kpiHours").textContent = (totalMs/3600000).toFixed(1) + "h";
+  document.getElementById("kpiSessions").textContent = weekSessions.length;
+  document.getElementById("kpiFocus").textContent = avgFocus;
+  document.getElementById("kpiStreak").textContent = computeStreak();
+
+  // Daily goal progress
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayMs = state.sessions
+    .filter(s => s.start >= today.getTime())
+    .reduce((a, s) => a + s.durationMs, 0);
+  const goalH = state.dailyGoalHours || 0;
+  const todayH = todayMs / 3600000;
+  const pct = goalH ? Math.min(100, (todayH / goalH) * 100) : 0;
+  document.getElementById("goalProgress").style.width = pct + "%";
+  document.getElementById("goalProgressText").textContent = `${todayH.toFixed(2)} / ${goalH}h today (${Math.round(pct)}%)`;
+
+  // Week chart
+  const labels = [];
+  const data = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    labels.push(d.toLocaleDateString(undefined, { weekday: "short" }));
+    const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
+    const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
+    const dayMs = state.sessions
+      .filter(s => s.start >= dayStart.getTime() && s.start <= dayEnd.getTime())
+      .reduce((a, s) => a + s.durationMs, 0);
+    data.push(+(dayMs/3600000).toFixed(2));
+  }
+  if (weekChartObj) weekChartObj.destroy();
+  weekChartObj = new Chart(document.getElementById("weekChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Hours",
+        data,
+        backgroundColor: "rgba(56, 189, 248, 0.6)",
+        borderColor: "rgba(56, 189, 248, 1)",
+        borderWidth: 1,
+        borderRadius: 6
+      }, {
+        label: "Goal",
+        data: labels.map(() => goalH),
+        type: "line",
+        borderColor: "rgba(250, 204, 21, 0.8)",
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#94a3b8" } } },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
+        y: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Topic chart (this week)
+  const topicMap = {};
+  weekSessions.forEach(s => {
+    topicMap[s.topic] = (topicMap[s.topic] || 0) + s.durationMs;
+  });
+  const tLabels = Object.keys(topicMap);
+  const tData = tLabels.map(k => +(topicMap[k]/3600000).toFixed(2));
+  if (topicChartObj) topicChartObj.destroy();
+  topicChartObj = new Chart(document.getElementById("topicChart"), {
+    type: "doughnut",
+    data: {
+      labels: tLabels.length ? tLabels : ["No data yet"],
+      datasets: [{
+        data: tData.length ? tData : [1],
+        backgroundColor: [
+          "#38bdf8","#22d3ee","#4ade80","#facc15",
+          "#f87171","#a78bfa","#fb923c","#34d399","#60a5fa"
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#94a3b8", font: { size: 11 } } },
+        title: { display: true, text: "Time by topic (this week)", color: "#94a3b8", font: { size: 12 } }
+      }
+    }
+  });
+}
+
+function computeStreak() {
+  if (!state.sessions.length) return 0;
+  const days = new Set(state.sessions.map(s => {
+    const d = new Date(s.start); d.setHours(0,0,0,0);
+    return d.getTime();
+  }));
+  let streak = 0;
+  let cursor = new Date(); cursor.setHours(0,0,0,0);
+  // If no session today, start from yesterday
+  if (!days.has(cursor.getTime())) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!days.has(cursor.getTime())) return 0;
+  }
+  while (days.has(cursor.getTime())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// TODAY PANEL
+function renderToday() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(today); end.setHours(23,59,59,999);
+  const todaySess = state.sessions.filter(s => s.start >= today.getTime() && s.start <= end.getTime());
+  const totalMs = todaySess.reduce((a,s) => a + s.durationMs, 0);
+  const focusVals = todaySess.filter(s => s.focus).map(s => s.focus);
+  const avgFocus = focusVals.length ? (focusVals.reduce((a,b)=>a+b,0)/focusVals.length).toFixed(1) : "-";
+  const interrupts = todaySess.reduce((a,s) => a + (s.interruptions || 0), 0);
+
+  document.getElementById("todayDate").textContent = today.toLocaleDateString(undefined, { weekday:"long", month:"short", day:"numeric" });
+  document.getElementById("todayHours").textContent = (totalMs/3600000).toFixed(2) + "h";
+  document.getElementById("todaySessions").textContent = todaySess.length;
+  document.getElementById("todayFocus").textContent = avgFocus;
+  document.getElementById("todayInterrupts").textContent = interrupts;
+
+  // Topic breakdown for today
+  const topicMap = {};
+  todaySess.forEach(s => { topicMap[s.topic] = (topicMap[s.topic] || 0) + s.durationMs; });
+  const parts = Object.entries(topicMap).map(([t, ms]) => `<span class="chip" style="margin-right:6px;">${t} - ${(ms/3600000).toFixed(2)}h</span>`);
+  document.getElementById("todayTopicsRow").innerHTML = parts.length ? parts.join("") : "<em>No sessions logged today yet.</em>";
+}
+
+// TIMESHEET (filtered log)
+function filteredSessions() {
+  const now = new Date();
+  if (currentFilter === "today") {
+    const start = new Date(); start.setHours(0,0,0,0);
+    const end = new Date(); end.setHours(23,59,59,999);
+    return state.sessions.filter(s => s.start >= start.getTime() && s.start <= end.getTime());
+  }
+  if (currentFilter === "week") {
+    const { monday, sunday } = getWeekRange();
+    return state.sessions.filter(s => s.start >= monday.getTime() && s.start <= sunday.getTime());
+  }
+  return state.sessions.slice();
+}
+
+function renderLog() {
+  const body = document.getElementById("logBody");
+  body.innerHTML = "";
+  const list = filteredSessions();
+  const summaryMs = list.reduce((a,s) => a + s.durationMs, 0);
+  document.getElementById("filterSummary").textContent = `${list.length} session${list.length === 1 ? "" : "s"} - ${(summaryMs/3600000).toFixed(2)}h total`;
+
+  if (!list.length) {
+    document.getElementById("emptyLog").style.display = "block";
+    document.getElementById("logTable").style.display = "none";
+    return;
+  }
+  document.getElementById("emptyLog").style.display = "none";
+  document.getElementById("logTable").style.display = "table";
+
+  const moodIcons = { 1:"😩", 2:"😐", 3:"🙂", 4:"💪", 5:"🔥" };
+
+  list.forEach(s => {
+    const tr = document.createElement("tr");
+    const d = new Date(s.start);
+    const e = new Date(s.end || (s.start + s.durationMs));
+    const noteText = escapeHtml(s.notes);
+    tr.innerHTML = `
+      <td>${d.toLocaleDateString()}</td>
+      <td>${d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</td>
+      <td>${e.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</td>
+      <td>${formatHours(s.durationMs)}</td>
+      <td><span class="chip">${s.topic}</span></td>
+      <td>${s.focus || "-"}</td>
+      <td>${s.interruptions ?? 0}</td>
+      <td style="font-size:18px;">${s.mood ? moodIcons[s.mood] : "-"}</td>
+      <td style="max-width:240px; color: var(--muted);" title="${noteText}">${noteText.slice(0, 80)}${(s.notes||"").length > 80 ? "..." : ""}</td>
+      <td class="log-actions"><button class="btn-primary" onclick="openEdit(${s.id})">Edit</button></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+// EDIT MODAL
+function fmtForInput(ms) {
+  const d = new Date(ms);
+  // produce YYYY-MM-DDTHH:MM for datetime-local
+  const pad = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openEdit(id) {
+  const s = state.sessions.find(x => x.id === id);
+  if (!s) return;
+  editingId = id;
+
+  // Topic dropdown options
+  const topicSel = document.getElementById("editTopic");
+  topicSel.innerHTML = "";
+  const allTopics = Array.from(new Set([...TOPICS, s.topic || "Unspecified"]));
+  allTopics.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t; opt.textContent = t;
+    if (t === s.topic) opt.selected = true;
+    topicSel.appendChild(opt);
+  });
+
+  document.getElementById("editStart").value = fmtForInput(s.start);
+  document.getElementById("editEnd").value = fmtForInput(s.end || (s.start + s.durationMs));
+  document.getElementById("editFocus").value = s.focus || "";
+  document.getElementById("editInterrupts").value = s.interruptions || 0;
+  document.getElementById("editMood").value = s.mood || "";
+  document.getElementById("editNotes").value = s.notes || "";
+
+  document.getElementById("editModal").classList.add("open");
+}
+
+function closeEdit() {
+  editingId = null;
+  document.getElementById("editModal").classList.remove("open");
+}
+
+function saveEdit() {
+  if (editingId == null) return;
+  const s = state.sessions.find(x => x.id === editingId);
+  if (!s) return;
+  const startMs = new Date(document.getElementById("editStart").value).getTime();
+  const endMs = new Date(document.getElementById("editEnd").value).getTime();
+  if (isNaN(startMs) || isNaN(endMs)) { alert("Invalid date/time"); return; }
+  if (endMs <= startMs) { alert("End must be after start"); return; }
+  s.start = startMs;
+  s.end = endMs;
+  s.durationMs = endMs - startMs;
+  s.topic = document.getElementById("editTopic").value;
+  const f = document.getElementById("editFocus").value;
+  s.focus = f ? parseInt(f) : null;
+  s.interruptions = parseInt(document.getElementById("editInterrupts").value) || 0;
+  const m = document.getElementById("editMood").value;
+  s.mood = m ? parseInt(m) : null;
+  s.notes = document.getElementById("editNotes").value;
+  // Keep sessions sorted by start desc
+  state.sessions.sort((a,b) => b.start - a.start);
+  saveState();
+  closeEdit();
+  renderAll();
+}
+
+function deleteEditing() {
+  if (editingId == null) return;
+  if (!confirm("Delete this session permanently?")) return;
+  state.sessions = state.sessions.filter(s => s.id !== editingId);
+  saveState();
+  closeEdit();
+  renderAll();
+}
+
+function renderAll() {
+  renderToday();
+  renderDashboard();
+  renderLog();
+}
+
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[m]));
+}
+
+// IMPORT / EXPORT
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gmat-tracker-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!confirm("This will replace your current data. Continue?")) return;
+      state = { ...state, ...parsed };
+      saveState();
+      loadState();
+      renderTopics(); renderFocus(); renderMood();
+      renderAll();
+      document.getElementById("notesInput").value = state.draft.notes || "";
+      document.getElementById("interruptCount").textContent = state.draft.interruptions || 0;
+    } catch (e) { alert("Invalid file"); }
+  };
+  reader.readAsText(file);
+}
+
+// INIT
+loadState();
+renderTopics();
+renderFocus();
+renderMood();
+document.getElementById("notesInput").value = state.draft.notes || "";
+document.getElementById("interruptCount").textContent = state.draft.interruptions || 0;
+renderAll();
+// Resume timer if it was running before refresh/close
+if (state.current) {
+  if (state.current.running) {
+    // Gap since last saved tick (capped at 2 minutes to avoid counting tab-close time)
+    const gap = Math.min(Date.now() - state.current.startedAt, 120000);
+    state.current.elapsedMs += gap;
+    state.current.startedAt = Date.now();
+    saveState();
+    timerInterval = setInterval(tick, 1000);
+  }
+  updateTimerButtons();
+  tick();
+}
+</script>
+</body>
+</html>
